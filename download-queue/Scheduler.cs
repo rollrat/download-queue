@@ -8,7 +8,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 
-namespace download_queue
+namespace DownloadQueue
 {
     public interface IScheduler<T>
         where T : IComparable<T>
@@ -47,7 +47,7 @@ namespace download_queue
     /// <typeparam name="P">Priority type</typeparam>
     /// <typeparam name="F">Field type</typeparam>
     public class Scheduler<T, P, F>
-        : IScheduler<T>
+        : IScheduler<T>, IDisposable
         where T : ISchedulerContents<T, P>
         where P : IComparable<P>
         where F : IField<T, P>, new()
@@ -152,6 +152,11 @@ namespace download_queue
             lock (queue) e = queue.Push(task);
             lock (notify_lock) Notify();
             return e;
+        }
+
+        public void Dispose()
+        {
+            threads.ForEach(x => x.Interrupt());
         }
     }
 
