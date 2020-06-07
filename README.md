@@ -31,3 +31,7 @@ static void Main(string[] args)
     dq.Dispose();
 }
 ```
+
+## TODO
+
+Apply array doubling to heap.
