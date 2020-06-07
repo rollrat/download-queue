@@ -71,6 +71,8 @@ namespace DownloadQueue
 
         object notify_lock = new object();
 
+        bool dispose;
+
         public Scheduler(int capacity = 0, bool use_emergency_thread = false)
         {
             this.capacity = capacity;
@@ -103,6 +105,9 @@ namespace DownloadQueue
             while (true)
             {
                 interrupt[index].WaitOne();
+
+                if (dispose)
+                    break;
 
                 T task;
 
@@ -156,7 +161,8 @@ namespace DownloadQueue
 
         public void Dispose()
         {
-            threads.ForEach(x => x.Interrupt());
+            dispose = true;
+            interrupt.ForEach(x => x.Set());
         }
     }
 
