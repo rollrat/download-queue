@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29709.97
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "download-queue", "download-queue\download-queue.csproj", "{3D0DB5E1-4F05-42AC-A690-C2090CE3AAEE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3D0DB5E1-4F05-42AC-A690-C2090CE3AAEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D0DB5E1-4F05-42AC-A690-C2090CE3AAEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D0DB5E1-4F05-42AC-A690-C2090CE3AAEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D0DB5E1-4F05-42AC-A690-C2090CE3AAEE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {39C88A09-ED30-4DBF-A91A-C91474CCF942}
+	EndGlobalSection
+EndGlobal
