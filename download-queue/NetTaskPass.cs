@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace download_queue
+namespace DownloadQueue
 {
     public abstract class NetTaskPass
     {

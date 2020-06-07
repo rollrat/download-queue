@@ -9,7 +9,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 
-namespace download_queue
+namespace DownloadQueue
 {
     /// <summary>
     /// Implementaion of real download procedure
