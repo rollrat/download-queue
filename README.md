@@ -10,6 +10,7 @@ static void Main(string[] args)
     var dq = new DownloadQueue.DownloadQueue();
     var html = dq.DownloadString("https://www.google.com/");
     Console.WriteLine(html);
+    dq.Dispose();
 }
 ```
 
@@ -27,5 +28,6 @@ static void Main(string[] args)
     task.DownloadCallback = (size) => { current += size; Console.WriteLine("Receive: " + size + " " + (current / (double)total)); };
     task.Filename = "test";
     dq.DownloadFile(task);
+    dq.Dispose();
 }
 ```
