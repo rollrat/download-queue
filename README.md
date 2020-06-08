@@ -1,5 +1,7 @@
 # Download Queue
 
+[![NuGet version (BlackBeltCoder.Silk)](https://img.shields.io/nuget/v/DownloadQueue)](https://www.nuget.org/packages/DownloadQueue/)
+
 ## Usage
 
 ### 1. Download Html
