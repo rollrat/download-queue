@@ -31,3 +31,52 @@ static void Main(string[] args)
     dq.Dispose();
 }
 ```
+
+### 3. Download Strings
+
+``` cs
+public List<string> DownloadStrings(List<string> urls, string cookie = "", Action complete = null, Action error = null)
+{
+    var interrupt = new ManualResetEvent(false);
+    var result = new string[urls.Count];
+    var count = urls.Count;
+    int iter = 0;
+
+    foreach (var url in urls)
+    {
+        var itertmp = iter;
+        var task = MakeDefault(url);
+        task.DownloadString = true;
+        task.CompleteCallbackString = (str) =>
+        {
+            result[itertmp] = str;
+            if (Interlocked.Decrement(ref count) == 0)
+                interrupt.Set();
+            complete?.Invoke();
+        };
+        task.ErrorCallback = (code, e) =>
+        {
+            if (Interlocked.Decrement(ref count) == 0)
+                interrupt.Set();
+            error?.Invoke();
+        };
+        task.Cookie = cookie;
+        Scheduler.Add(task); // == dq.AppendTask(task);
+        iter++;
+    }
+
+    interrupt.WaitOne();
+
+    return result.ToList();
+}
+```
+
+``` cs
+static void Main(string[] args)
+{
+    using (var dq = new DownloadQueue.DownloadQueue())
+    {
+        var results = dq.DownloadStrings(Enumerable.Range(0, 65535).Select(x => $"http://127.0.0.1:80/?query={x}").ToList());
+    }
+}
+```
