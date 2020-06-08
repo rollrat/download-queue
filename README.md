@@ -4,6 +4,8 @@
 
 ![](4.gif)
 
+Easy to download multiple requests quickly.
+
 ## Usage
 
 ### 1. Download Html
