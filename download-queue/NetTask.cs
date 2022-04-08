@@ -1,5 +1,5 @@
 ﻿// C# download queue library
-// Copyright (C) 2020. rollrat. Licensed under the MIT Licence.
+// Copyright (C) 2020-2022. rollrat. Licensed under the MIT Licence.
 
 using System;
 using System.Collections.Generic;
@@ -12,7 +12,7 @@ namespace DownloadQueue
     /// <summary>
     /// Information of what download for
     /// </summary>
-    public class NetTask : ISchedulerContents<NetTask, NetPriority>
+    public class NetTask
     {
         public enum NetError
         {
@@ -38,6 +38,7 @@ namespace DownloadQueue
         public string Cookie { get; set; }
         public Dictionary<string, string> Headers { get; set; }
         public Dictionary<string, string> Query { get; set; }
+        public string RequestBody { get; set; }
         public IWebProxy Proxy { get; set; }
 
         /* Detail Information */

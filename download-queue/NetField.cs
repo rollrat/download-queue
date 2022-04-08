@@ -1,5 +1,5 @@
 ﻿// C# download queue library
-// Copyright (C) 2020. rollrat. Licensed under the MIT Licence.
+// Copyright (C) 2020-2022. rollrat. Licensed under the MIT Licence.
 
 using System;
 using System.Collections.Generic;
@@ -14,15 +14,14 @@ namespace DownloadQueue
     /// <summary>
     /// Implementaion of real download procedure
     /// </summary>
-    public class NetField : IField<NetTask, NetPriority>
+    public class NetField
     {
-        public override void Main(NetTask content)
+        public static void Do(NetTask content)
         {
             var retry_count = 0;
 
         RETRY_PROCEDURE:
 
-            interrupt.WaitOne();
             if (content.Cancel != null && content.Cancel.IsCancellationRequested)
             {
                 content.CancleCallback();
@@ -31,11 +30,8 @@ namespace DownloadQueue
 
             NetTaskPass.RunOnField(ref content);
 
-            interrupt.WaitOne();
-
         REDIRECTION:
 
-            interrupt.WaitOne();
             if (content.Cancel != null && content.Cancel.IsCancellationRequested)
             {
                 content.CancleCallback();
@@ -91,7 +87,18 @@ namespace DownloadQueue
                     request_stream.Write(query);
                     request_stream.Close();
 
-                    interrupt.WaitOne();
+                    if (content.Cancel != null && content.Cancel.IsCancellationRequested)
+                    {
+                        content.CancleCallback();
+                        return;
+                    }
+                }
+                else if (content.RequestBody != null)
+                {
+                    var request_stream = new StreamWriter(request.GetRequestStream());
+                    request_stream.Write(content.RequestBody);
+                    request_stream.Close();
+
                     if (content.Cancel != null && content.Cancel.IsCancellationRequested)
                     {
                         content.CancleCallback();
@@ -130,7 +137,6 @@ namespace DownloadQueue
                     }
                     else if (response.StatusCode == HttpStatusCode.OK)
                     {
-                        interrupt.WaitOne();
                         if (content.Cancel != null && content.Cancel.IsCancellationRequested)
                         {
                             content.CancleCallback();
@@ -165,7 +171,6 @@ namespace DownloadQueue
                             return;
                         }
 
-                        interrupt.WaitOne();
                         if (content.Cancel != null && content.Cancel.IsCancellationRequested)
                         {
                             content.CancleCallback();
@@ -181,7 +186,6 @@ namespace DownloadQueue
 
                         do
                         {
-                            interrupt.WaitOne();
                             if (content.Cancel != null && content.Cancel.IsCancellationRequested)
                             {
                                 content.CancleCallback();
@@ -191,7 +195,6 @@ namespace DownloadQueue
                             byte_read = istream.Read(buffer, 0, buffer.Length);
                             ostream.Write(buffer, 0, (int)byte_read);
 
-                            interrupt.WaitOne();
                             if (content.Cancel != null && content.Cancel.IsCancellationRequested)
                             {
                                 content.CancleCallback();

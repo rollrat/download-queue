@@ -1,5 +1,5 @@
 ﻿// C# download queue library
-// Copyright (C) 2020. rollrat. Licensed under the MIT Licence.
+// Copyright (C) 2020-2022. rollrat. Licensed under the MIT Licence.
 
 using System;
 using System.Collections.Generic;

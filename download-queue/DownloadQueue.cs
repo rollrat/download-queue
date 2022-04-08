@@ -1,11 +1,10 @@
 ﻿// C# download queue library
-// Copyright (C) 2020. rollrat. Licensed under the MIT Licence.
+// Copyright (C) 2020-2022. rollrat. Licensed under the MIT Licence.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,42 +12,57 @@ namespace DownloadQueue
 {
     public class DownloadQueue : IDisposable
     {
-        internal NetScheduler Scheduler { get; private set; }
-
         internal bool TimeoutInfinite { get; private set; }
         internal int TimeoutMillisecond { get; private set; }
         internal int RetryCount { get; set; }
         internal int DownloadBufferSize { get; private set; }
         internal IWebProxy DefaultProxy { get; private set; }
+        internal int Capacity { get; private set; }
 
-        public DownloadQueue(int threadcount = -1, 
+        SemaphoreSlim semaphore;
+
+        private bool disposedValue;
+
+        public DownloadQueue(
+            int Capacity = 0,
             bool TimeoutInfinite = false, 
             int TimeoutMillisecond = 10000, 
             int RetryCount = 10, 
             int DownloadBufferSize = 131072, 
             IWebProxy DefaultProxy = null)
         {
-            if (threadcount == -1)
-                threadcount = Environment.ProcessorCount;
+            this.Capacity = Capacity;
+
+            if (this.Capacity == 0)
+                this.Capacity = Environment.ProcessorCount;
 
             ServicePointManager.DefaultConnectionLimit = int.MaxValue;
-
-            Scheduler = new NetScheduler(threadcount);
 
             this.TimeoutInfinite = TimeoutInfinite;
             this.TimeoutMillisecond = TimeoutMillisecond;
             this.RetryCount = RetryCount;
             this.DownloadBufferSize = DownloadBufferSize;
             this.DefaultProxy = DefaultProxy;
+
+            ThreadPool.SetMinThreads(Capacity, Capacity);
+            semaphore = new SemaphoreSlim(Capacity, Capacity);
         }
 
         /// <summary>
         /// Append task to download queue.
         /// </summary>
         /// <param name="task"></param>
-        public void AppendTask(NetTask task)
+        public Task AppendTask(NetTask task)
         {
-            Scheduler.Add(task);
+            return Task.Run(async () =>
+            {
+                await semaphore.WaitAsync().ConfigureAwait(false);
+                _ = Task.Run(() =>
+                {
+                    NetField.Do(task);
+                    semaphore.Release();
+                }).ConfigureAwait(false);
+            });
         }
 
         /// <summary>
@@ -68,7 +82,6 @@ namespace DownloadQueue
                 RetryWhenFail = true,
                 RetryCount = RetryCount,
                 DownloadBufferSize = DownloadBufferSize,
-                Priority = new NetPriority() { Type = NetPriorityType.Trivial },
                 Proxy = DefaultProxy,
                 Cookie = cookie,
                 Url = url
@@ -91,7 +104,6 @@ namespace DownloadQueue
                 RetryWhenFail = true,
                 RetryCount = RetryCount,
                 DownloadBufferSize = DownloadBufferSize,
-                Priority = new NetPriority() { Type = NetPriorityType.Trivial },
                 Proxy = DefaultProxy,
                 Cookie = cookie,
                 Url = url
@@ -105,7 +117,7 @@ namespace DownloadQueue
         /// <param name="complete">Callback for completed.</param>
         /// <param name="error">Callback for error occurred.</param>
         /// <returns></returns>
-        public List<string> DownloadStrings(List<string> urls, string cookie = "", Action complete = null, Action error = null)
+        public async Task<List<string>> DownloadStrings(List<string> urls, string cookie = "", Action complete = null, Action error = null)
         {
             var interrupt = new ManualResetEvent(false);
             var result = new string[urls.Count];
@@ -131,7 +143,7 @@ namespace DownloadQueue
                     error?.Invoke();
                 };
                 task.Cookie = cookie;
-                Scheduler.Add(task);
+                await AppendTask(task).ConfigureAwait(false);
                 iter++;
             }
 
@@ -145,7 +157,7 @@ namespace DownloadQueue
         /// </summary>
         /// <param name="tasks">Tasks</param>
         /// <returns></returns>
-        public List<string> DownloadStrings(List<NetTask> tasks)
+        public async Task<List<string>> DownloadStrings(List<NetTask> tasks)
         {
             var interrupt = new ManualResetEvent(false);
             var result = new string[tasks.Count];
@@ -167,7 +179,7 @@ namespace DownloadQueue
                     if (Interlocked.Decrement(ref count) == 0)
                         interrupt.Set();
                 };
-                Scheduler.Add(task);
+                await AppendTask(task).ConfigureAwait(false);
                 iter++;
             }
 
@@ -203,7 +215,7 @@ namespace DownloadQueue
         /// <returns></returns>
         public async Task<string> DownloadStringAsync(NetTask task)
         {
-            return await Task.Run(() =>
+            return await Task.Run(async () =>
             {
                 var interrupt = new ManualResetEvent(false);
                 string result = null;
@@ -221,7 +233,7 @@ namespace DownloadQueue
                     interrupt.Set();
                 };
 
-                Scheduler.Add(task);
+                await AppendTask(task).ConfigureAwait(false);
 
                 interrupt.WaitOne();
 
@@ -234,10 +246,11 @@ namespace DownloadQueue
         /// </summary>
         /// <param name="url_path">(URL, Filename) pair list.</param>
         /// <param name="cookie">Cookie message</param>
+        /// <param name="download">Callback for downloaded block size.</param>
         /// <param name="complete">Callback for completed.</param>
         /// <param name="error">Callback for error occurred.</param>
         /// <returns></returns>
-        public void DownloadFiles(List<(string, string)> url_path, string cookie = "", Action complete = null, Action error = null)
+        public async Task DownloadFiles(List<(string, string)> url_path, string cookie = "", Action<long> download = null, Action complete = null, Action error = null)
         {
             var interrupt = new ManualResetEvent(false);
             var count = url_path.Count;
@@ -249,6 +262,10 @@ namespace DownloadQueue
                 var task = MakeDefault(up.Item1);
                 task.SaveFile = true;
                 task.Filename = up.Item2;
+                task.DownloadCallback = (sz) =>
+                {
+                    download?.Invoke(sz);
+                };
                 task.CompleteCallback = () =>
                 {
                     if (Interlocked.Decrement(ref count) == 0)
@@ -262,7 +279,7 @@ namespace DownloadQueue
                     error?.Invoke();
                 };
                 task.Cookie = cookie;
-                Scheduler.Add(task);
+                await AppendTask(task).ConfigureAwait(false);
                 iter++;
             }
 
@@ -279,7 +296,6 @@ namespace DownloadQueue
             var task = MakeDefault(url);
             task.SaveFile = true;
             task.Filename = filename;
-            task.Priority = new NetPriority { Type = NetPriorityType.Low };
             DownloadFileAsync(task).Wait();
         }
 
@@ -299,7 +315,7 @@ namespace DownloadQueue
         /// <returns></returns>
         public async Task DownloadFileAsync(NetTask task)
         {
-            await Task.Run(() =>
+            await Task.Run(async () =>
             {
                 var interrupt = new ManualResetEvent(false);
 
@@ -315,7 +331,7 @@ namespace DownloadQueue
                     interrupt.Set();
                 };
 
-                Scheduler.Add(task);
+                await AppendTask(task).ConfigureAwait(false);
 
                 interrupt.WaitOne();
             }).ConfigureAwait(false);
@@ -348,7 +364,7 @@ namespace DownloadQueue
         /// <returns></returns>
         public async Task<byte[]> DownloadDataAsync(NetTask task)
         {
-            return await Task.Run(() =>
+            return await Task.Run(async () =>
             {
                 var interrupt = new ManualResetEvent(false);
                 byte[] result = null;
@@ -366,7 +382,7 @@ namespace DownloadQueue
                     interrupt.Set();
                 };
 
-                Scheduler.Add(task);
+                await AppendTask(task).ConfigureAwait(false);
 
                 interrupt.WaitOne();
 
@@ -374,9 +390,22 @@ namespace DownloadQueue
             }).ConfigureAwait(false);
         }
 
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                }
+
+                disposedValue = true;
+            }
+        }
+
         public void Dispose()
         {
-            Scheduler.Dispose();
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }
